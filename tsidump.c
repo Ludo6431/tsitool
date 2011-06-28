@@ -35,7 +35,7 @@ char *dumpname(FILE *fd, unsigned int *rsize) {
 void dumpsections(FILE *fd, unsigned int secsize) {
     tSECTION s;
     unsigned int i, size = 0, rsize;
-    static unsigned int level = 0;
+    static unsigned int level = 0, in_dcbm = 0;
     level++;
 
     while(size < secsize) {
@@ -150,6 +150,88 @@ void dumpsections(FILE *fd, unsigned int secsize) {
             if(fread(data, sizeof(char), 20, fd)!=20)
                 printf("wtff? fread\n");
             rsize -= 20;
+            break;
+        }
+        case MAKEID('D', 'D', 'C', 'B'):    // device data
+        {
+            dumpsections(fd, rsize);   // recurse
+            break;
+        }
+        case MAKEID('C', 'M', 'A', 'S'):    // comment?
+        {
+            unsigned int number;
+            if(fread(&number, sizeof(unsigned int), 1, fd)!=1)
+                printf("wtff? fread\n");
+            number = be2cpu32(number);
+            for(i=0; i<level+2; i++)
+                printf(" ");
+            printf("number=      %u\n", number);
+            rsize -= sizeof(unsigned int);
+
+            dumpsections(fd, rsize);   // recurse
+            break;
+        }
+        case MAKEID('C', 'M', 'A', 'I'):    // comment? item
+        {
+            char data[12];
+            if(fread(data, sizeof(char), 12, fd)!=12)
+                printf("wtff? fread\n");
+            rsize -= 12;
+
+            dumpsections(fd, rsize);   // recurse
+            break;
+        }
+        case MAKEID('C', 'M', 'A', 'D'):    // comment? data
+        {
+            char data0[48];
+            if(fread(data0, sizeof(char), 48, fd)!=48)
+                printf("wtff? fread\n");
+            rsize -= 48;
+
+            for(i=0; i<level+2; i++)
+                printf(" ");
+            printf("comment=%s\n", dumpname(fd, &rsize));
+
+            char data1[64];
+            if(fread(data1, sizeof(char), 64, fd)!=64)
+                printf("wtff? fread\n");
+            rsize -= 64;
+            break;
+        }
+        case MAKEID('D', 'C', 'B', 'M'):    // ?
+        {
+            if(!in_dcbm) {
+                in_dcbm = 1;
+
+                unsigned int number;
+                if(fread(&number, sizeof(unsigned int), 1, fd)!=1)
+                    printf("wtff? fread\n");
+                number = be2cpu32(number);
+                for(i=0; i<level+2; i++)
+                    printf(" ");
+                printf("number=      %u\n", number);
+                rsize -= sizeof(unsigned int);
+
+                dumpsections(fd, rsize);   // recurse
+
+                in_dcbm = 0;
+            }
+            else {
+                // mici channel
+                unsigned int channel;
+                if(fread(&channel, sizeof(unsigned int), 1, fd)!=1)
+                    printf("wtff? fread\n");
+                channel = be2cpu32(channel);
+                for(i=0; i<level+2; i++)
+                    printf(" ");
+                printf("channel  =%u\n", channel);
+                rsize -= sizeof(unsigned int);
+
+                // alias name
+                for(i=0; i<level+2; i++)
+                    printf(" ");
+                printf("aliasname=%s\n", dumpname(fd, &rsize));
+            }
             break;
         }
         default:
