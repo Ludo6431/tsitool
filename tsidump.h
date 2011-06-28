@@ -3,7 +3,7 @@
 
 #include "tsi.h"
 
-void dumpsections(FILE *fd, tSECTION *sec);
+void dumpsections(FILE *fd, unsigned int secsize);
 
 #endif
 

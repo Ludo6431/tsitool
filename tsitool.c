@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     rewind(fd);
     printf("filesize=    %u\n", fsize);
 
-    dumpsections(fd, NULL);
+    dumpsections(fd, fsize);
 
     fclose(fd);
 
