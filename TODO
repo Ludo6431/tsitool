@@ -1,0 +1,5 @@
+* parse parameters in tsitool
+* directly parse the .tsi (not the decoded base64 bin file)
+* RE the DCDT unknown static fields
+* make a read and a write tool (store data in a structure)
+* 

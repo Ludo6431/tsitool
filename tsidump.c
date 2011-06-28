@@ -1,21 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-typedef struct {
-    union {
-        char name[4];
-        unsigned int id;
-    };
-    unsigned int size;
-} tSECTION;
-
-typedef struct {    // devices
-    unsigned int nbitems;
-} tDEVS;
-
-#define be2cpu16(u) (((((u)>>0)&0xFF) << 8) | ((((u)>>8)&0xFF) << 0))
-#define be2cpu32(u) (((((u)>>0)&0xFF) << 24) | ((((u)>>8)&0xFF) << 16) | ((((u)>>16)&0xFF) << 8) | ((((u)>>24)&0xFF) << 0))
-#define MAKEID(a, b, c, d) be2cpu32((((a)&0xFF)<<24) | (((b)&0xFF)<<16) | (((c)&0xFF)<<8) | (((d)&0xFF)<<0))
+#include "tsi.h"
+#include "tools.h"
 
 char *dumpname(FILE *fd) {
     unsigned int len, i;
@@ -62,22 +49,22 @@ void dumpsections(FILE *fd, tSECTION *sec) {
         switch(s.id) {
         case MAKEID('D', 'I', 'O', 'M'):
         {
-            dumpsections(fd, &s);
+            dumpsections(fd, &s);   // recurse
             break;
         }
         case MAKEID('D', 'E', 'V', 'S'):    // devices
         {
-            tDEVS devs;
+            unsigned int nbdevs;
 
-            if(fread(&devs, sizeof(tDEVS), 1, fd)!=1)
+            if(fread(&nbdevs, sizeof(unsigned int), 1, fd)!=1)
                 printf("wtff?\n fread");
-            devs.nbitems = be2cpu32(devs.nbitems);
+            nbdevs = be2cpu32(nbdevs);
 
             for(i=0; i<level+2; i++)
                 printf(" ");
-            printf("nbitems=%u\n", devs.nbitems);
+            printf("nbdevs=%u\n", nbdevs);
 
-            dumpsections(fd, &s);
+            dumpsections(fd, &s);   // recurse
             break;
         }
         case MAKEID('D', 'E', 'V', 'I'):    // device item
@@ -86,12 +73,12 @@ void dumpsections(FILE *fd, tSECTION *sec) {
                 printf(" ");
             printf("devicename=%s\n", dumpname(fd));
 
-            dumpsections(fd, &s);
+            dumpsections(fd, &s);   // recurse
             break;
         }
         case MAKEID('D', 'D', 'A', 'T'):    // dev ice data
         {
-            dumpsections(fd, &s);
+            dumpsections(fd, &s);   // recurse
             break;
         }
         case MAKEID('D', 'D', 'I', 'V'):    // device data interpreter? version
@@ -129,7 +116,7 @@ void dumpsections(FILE *fd, tSECTION *sec) {
         }
         case MAKEID('D', 'D', 'D', 'C'):    // device data
         {
-            dumpsections(fd, &s);
+            dumpsections(fd, &s);   // recurse
             break;
         }
         case MAKEID('D', 'D', 'C', 'I'):    // device data controller input
@@ -143,7 +130,7 @@ void dumpsections(FILE *fd, tSECTION *sec) {
                 printf(" ");
             printf("number=      %u\n", number);
 
-            dumpsections(fd, &s);
+            dumpsections(fd, &s);   // recurse
             break;
         }
         case MAKEID('D', 'C', 'D', 'T'):    // device data controller
@@ -165,52 +152,4 @@ void dumpsections(FILE *fd, tSECTION *sec) {
 
     level--;
 }
-
-int main(int argc, char *argv[]) {
-    if(argc!=2)
-        return EXIT_FAILURE;
-
-    char *fname = argv[1];
-
-    FILE *fd = fopen(fname, "rb+");
-    if(!fd)
-        return EXIT_FAILURE;
-
-    fseek(fd, 0, SEEK_END);
-    unsigned int fsize = ftell(fd);
-    rewind(fd);
-    printf("filesize=    %u\n", fsize);
-
-#if 0
-    char *fdata = malloc(fsize);
-    if(!fdata)
-        return EXIT_SUCCESS;
-
-    if(fread(fdata, fsize, 1, fd)!=1)
-        return EXIT_FAILURE;
-    fclose(fd);
-
-    // read header
-    tSECTION *hdr = (tSECTION *)fdata;
-    hdr->size = be2cpu(hdr->size);
-
-    printf("magic=       %c%c%c%c\n", hdr->name[0], hdr->name[1], hdr->name[2], hdr->name[3]);
-    printf("contentsize= %u\n", hdr->size);
-
-    // read each section
-    tSECTION *sec = NULL;
-    for(i=0; fread(&sec, sizeof(tSECTION); i++) {
-        
-    }
-
-    free(fdata);
-#else
-    dumpsections(fd, NULL);
-
-    fclose(fd);
-#endif
-
-    return EXIT_SUCCESS;
-}
-
 
